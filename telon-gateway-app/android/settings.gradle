@@ -1,7 +1,20 @@
-rootProject.name = 'teleexample'
-include ':react-native-sip2'
-project(':react-native-sip2').projectDir = new File(rootProject.projectDir, '../../../modules/react-native-sip2/android')
-include ':react-native-tele'
-project(':react-native-tele').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-tele/android/app')
-apply from: file("../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); applyNativeModulesSettingsGradle(settings)
-include ':app'
+pluginManagement {
+  includeBuild("../node_modules/@react-native/gradle-plugin")
+}
+
+plugins {
+  id("com.facebook.react.settings")
+}
+
+rootProject.name = "teleexample"
+
+include(":app")
+
+// include(":react-native-sip2")
+// project(":react-native-sip2").projectDir = new File(rootProject.projectDir, "../../react-native-sip2/android")
+
+// include(":sip2-android-core")
+// project(":sip2-android-core").projectDir = new File(rootProject.projectDir, "../../sip2-android-core/android")
+
+include(":react-native-tele")
+project(":react-native-tele").projectDir = new File(rootProject.projectDir, "../../react-native-tele/android/app")
