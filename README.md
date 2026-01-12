@@ -18,7 +18,7 @@ The application consists of two main endpoints that work together to bridge GSM 
 ### Call Flow
 
 #### Incoming SIP → Outgoing GSM
-1. SIP call is received by the SIP endpoint
+1. SIP call is received by the SIP endpointDo 
 2. Application extracts the destination number from SIP call
 3. Initiates outgoing GSM call using the telephony endpoint
 4. Bridges audio between SIP and GSM calls
