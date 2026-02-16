@@ -1,4 +1,4 @@
-name: Build
+name: Build Android APK
 
 on:
   push:
@@ -19,62 +19,73 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 16
-          cache: 'npm'
+          node-version: 18
+          cache: 'yarn'
+          cache-dependency-path: 'telon-gateway-app/yarn.lock'
 
       # Install Dependencies
       - name: Install Dependencies
         working-directory: telon-gateway-app
-        run: npm install
+        run: yarn install --frozen-lockfile
 
-      # Setup Java 8 (Required for older Gradle)
-      - name: Setup Java 8
+      # Setup Java 17 (Required for Gradle 8.x and React Native 0.80)
+      - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '8'
+          java-version: '17'
 
       # Setup Android SDK
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
-        with:
-          api-level: 19
-          build-tools: 25.2.5
 
-      # Download NDK r17b (Required by project)
-      - name: Download NDK r17b
+      # Accept Android SDK licenses
+      - name: Accept Android Licenses
+        run: yes | sdkmanager --licenses || true
+
+      # Install required SDK components
+      - name: Install Android SDK Components
         run: |
-          curl -L -o android-ndk-r17b-linux-x86_64.zip https://dl.google.com/android/repository/android-ndk-r17b-linux-x86_64.zip
-          unzip android-ndk-r17b-linux-x86_64.zip -d $HOME/android-ndk
-          rm android-ndk-r17b-linux-x86_64.zip
+          sdkmanager "platforms;android-34" "build-tools;34.0.0" "ndk;26.1.10909125"
 
-      - name: Configure NDK Path
-        run: |
-          echo "ndk.dir=$HOME/android-ndk/android-ndk-r17b" > telon-gateway-app/android/local.properties
-
-      # Build React Native JS Bundle
-      - name: Bundle React Native
-        working-directory: telon-gateway-app
-        run: |
-          mkdir -p android/app/build/intermediates/assets/release/
-          npx react-native bundle \
-            --platform android \
-            --dev false \
-            --entry-file index.js \
-            --bundle-output android/app/build/intermediates/assets/release/index.android.bundle \
-            --assets-dest android/app/build/intermediates/res/merged/release
-
-      # Build Android Release AAB
-      - name: Build Android Release
+      # Configure NDK Path
+      - name: Configure Android NDK
         working-directory: telon-gateway-app/android
         run: |
-          chmod +x gradlew
-          ./gradlew clean
-          ./gradlew bundleRelease
+          echo "ndk.dir=$ANDROID_HOME/ndk/26.1.10909125" > local.properties
 
-      # Upload AAB Artifact
+      # Make Gradlew Executable
+      - name: Make Gradlew Executable
+        working-directory: telon-gateway-app/android
+        run: chmod +x gradlew
+
+      # Clean Build
+      - name: Clean Gradle Build
+        working-directory: telon-gateway-app/android
+        run: ./gradlew clean
+
+      # Build Android Release APK
+      - name: Build Android Release APK
+        working-directory: telon-gateway-app/android
+        run: ./gradlew assembleRelease
+
+      # Upload APK Artifact
+      - name: Upload Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-release-apk
+          path: telon-gateway-app/android/app/build/outputs/apk/release/*.apk
+
+      # Optional: Also build AAB if needed
+      - name: Build Android Release AAB
+        working-directory: telon-gateway-app/android
+        run: ./gradlew bundleRelease
+        continue-on-error: true
+
+      # Upload AAB Artifact (optional)
       - name: Upload Release Bundle
         uses: actions/upload-artifact@v4
         with:
           name: android-release-aab
           path: telon-gateway-app/android/app/build/outputs/bundle/release/*.aab
+        continue-on-error: true
