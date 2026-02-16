@@ -59,19 +59,21 @@ jobs:
           cat >> build.gradle << 'EOF'
           
           // Force all subprojects to use compileSdk 34 and Java 17
-          subprojects {
-              afterEvaluate { project ->
-                  if (project.hasProperty('android')) {
-                      project.android {
+          subprojects { subproject ->
+              subproject.afterEvaluate {
+                  if (subproject.hasProperty('android')) {
+                      subproject.android {
                           compileSdk 34
                           
-                          if (project.android.hasProperty('defaultConfig')) {
-                              project.android.defaultConfig {
-                                  if (!project.android.defaultConfig.hasProperty('minSdk')) {
+                          try {
+                              defaultConfig {
+                                  if (minSdk == null) {
                                       minSdk 21
                                   }
                                   targetSdk 34
                               }
+                          } catch (Exception e) {
+                              // defaultConfig might not exist, skip
                           }
                           
                           compileOptions {
@@ -85,7 +87,7 @@ jobs:
           EOF
           
           echo "=== Root build.gradle after patch ==="
-          tail -30 build.gradle
+          tail -35 build.gradle
 
       # Setup Java 17 (Required for Gradle 8.x and React Native 0.80)
       - name: Setup Java 17
