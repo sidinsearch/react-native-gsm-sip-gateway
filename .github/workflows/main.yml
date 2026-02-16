@@ -55,39 +55,51 @@ jobs:
         run: |
           echo "=== Patching root build.gradle ==="
           
-          # Add subprojects configuration to force compileSdk 34
-          cat >> build.gradle << 'EOF'
+          # Create a temp file with the subprojects configuration
+          cat > subprojects_patch.gradle << 'EOF'
           
           // Force all subprojects to use compileSdk 34 and Java 17
-          subprojects { subproject ->
-              subproject.afterEvaluate {
-                  if (subproject.hasProperty('android')) {
-                      subproject.android {
+          allprojects {
+              afterEvaluate { project ->
+                  if (project.plugins.hasPlugin('com.android.library') || project.plugins.hasPlugin('com.android.application')) {
+                      project.android {
                           compileSdk 34
                           
-                          try {
-                              defaultConfig {
-                                  if (minSdk == null) {
-                                      minSdk 21
-                                  }
+                          if (project.android.hasProperty('defaultConfig')) {
+                              project.android.defaultConfig {
                                   targetSdk 34
                               }
-                          } catch (Exception e) {
-                              // defaultConfig might not exist, skip
                           }
                           
-                          compileOptions {
-                              sourceCompatibility JavaVersion.VERSION_17
-                              targetCompatibility JavaVersion.VERSION_17
+                          if (project.android.hasProperty('compileOptions')) {
+                              project.android.compileOptions {
+                                  sourceCompatibility JavaVersion.VERSION_17
+                                  targetCompatibility JavaVersion.VERSION_17
+                              }
                           }
                       }
                   }
               }
           }
+          
           EOF
           
-          echo "=== Root build.gradle after patch ==="
-          tail -35 build.gradle
+          # Insert after the first line (typically the buildscript block or apply plugin)
+          # Find a good insertion point - after buildscript or at the beginning
+          if grep -q "buildscript {" build.gradle; then
+              # Insert after the closing brace of buildscript
+              sed -i '/^buildscript {/,/^}/a\\n// PATCHED: Force compileSdk 34 for all projects' build.gradle
+              sed -i '/^\/\/ PATCHED: Force compileSdk 34 for all projects/r subprojects_patch.gradle' build.gradle
+          else
+              # Just prepend to the file
+              cat subprojects_patch.gradle build.gradle > build.gradle.new
+              mv build.gradle.new build.gradle
+          fi
+          
+          rm -f subprojects_patch.gradle
+          
+          echo "=== Root build.gradle after patch (first 60 lines) ==="
+          head -60 build.gradle
 
       # Setup Java 17 (Required for Gradle 8.x and React Native 0.80)
       - name: Setup Java 17
