@@ -43,48 +43,47 @@ jobs:
             echo "Pre-patching react-native-replace-dialer/android/build.gradle"
             cd react-native-replace-dialer/android
             
-            # Create a more comprehensive patch
-            cat > build.gradle.new << 'GRADLE_EOF'
-buildscript {
-    repositories {
-        google()
-        mavenCentral()
-    }
-    dependencies {
-        classpath 'com.android.tools.build:gradle:8.4.0'
-    }
-}
-
-apply plugin: 'com.android.library'
-
-android {
-    compileSdk 34
-    namespace 'com.rnreplacedialer'
-
-    defaultConfig {
-        minSdk 21
-        targetSdk 34
-    }
-
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
-    }
-}
-
-repositories {
-    google()
-    mavenCentral()
-}
-
-dependencies {
-    implementation 'com.facebook.react:react-native:+'
-}
-GRADLE_EOF
-            
-            # Use the new file
+            # Backup original
             cp build.gradle build.gradle.original
-            cp build.gradle.new build.gradle
+            
+            # Create new build.gradle
+            cat > build.gradle << 'EOF'
+          buildscript {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+              dependencies {
+                  classpath 'com.android.tools.build:gradle:8.4.0'
+              }
+          }
+          
+          apply plugin: 'com.android.library'
+          
+          android {
+              compileSdk 34
+              namespace 'com.rnreplacedialer'
+          
+              defaultConfig {
+                  minSdk 21
+                  targetSdk 34
+              }
+          
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+          }
+          
+          repositories {
+              google()
+              mavenCentral()
+          }
+          
+          dependencies {
+              implementation 'com.facebook.react:react-native:+'
+          }
+          EOF
             
             echo "Patched build.gradle content:"
             cat build.gradle
@@ -111,46 +110,47 @@ GRADLE_EOF
             echo "Post-patching node_modules/react-native-replace-dialer/android/build.gradle"
             cd node_modules/react-native-replace-dialer/android
             
-            cat > build.gradle.new << 'GRADLE_EOF'
-buildscript {
-    repositories {
-        google()
-        mavenCentral()
-    }
-    dependencies {
-        classpath 'com.android.tools.build:gradle:8.4.0'
-    }
-}
-
-apply plugin: 'com.android.library'
-
-android {
-    compileSdk 34
-    namespace 'com.rnreplacedialer'
-
-    defaultConfig {
-        minSdk 21
-        targetSdk 34
-    }
-
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
-    }
-}
-
-repositories {
-    google()
-    mavenCentral()
-}
-
-dependencies {
-    implementation 'com.facebook.react:react-native:+'
-}
-GRADLE_EOF
-            
+            # Backup original
             cp build.gradle build.gradle.original
-            cp build.gradle.new build.gradle
+            
+            # Create new build.gradle
+            cat > build.gradle << 'EOF'
+          buildscript {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+              dependencies {
+                  classpath 'com.android.tools.build:gradle:8.4.0'
+              }
+          }
+          
+          apply plugin: 'com.android.library'
+          
+          android {
+              compileSdk 34
+              namespace 'com.rnreplacedialer'
+          
+              defaultConfig {
+                  minSdk 21
+                  targetSdk 34
+              }
+          
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+          }
+          
+          repositories {
+              google()
+              mavenCentral()
+          }
+          
+          dependencies {
+              implementation 'com.facebook.react:react-native:+'
+          }
+          EOF
             
             echo "Patched node_modules build.gradle:"
             cat build.gradle
