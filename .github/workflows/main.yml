@@ -36,59 +36,6 @@ jobs:
           repository: telon-org/react-native-replace-dialer
           path: react-native-replace-dialer
 
-      # Patch react-native-replace-dialer BEFORE linking
-      - name: Pre-patch react-native-replace-dialer
-        run: |
-          if [ -f "react-native-replace-dialer/android/build.gradle" ]; then
-            echo "Pre-patching react-native-replace-dialer/android/build.gradle"
-            cd react-native-replace-dialer/android
-            
-            # Backup original
-            cp build.gradle build.gradle.original
-            
-            # Create new build.gradle
-            cat > build.gradle << 'EOF'
-          buildscript {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-              dependencies {
-                  classpath 'com.android.tools.build:gradle:8.4.0'
-              }
-          }
-          
-          apply plugin: 'com.android.library'
-          
-          android {
-              compileSdk 34
-              namespace 'com.rnreplacedialer'
-          
-              defaultConfig {
-                  minSdk 21
-                  targetSdk 34
-              }
-          
-              compileOptions {
-                  sourceCompatibility JavaVersion.VERSION_17
-                  targetCompatibility JavaVersion.VERSION_17
-              }
-          }
-          
-          repositories {
-              google()
-              mavenCentral()
-          }
-          
-          dependencies {
-              implementation 'com.facebook.react:react-native:+'
-          }
-          EOF
-            
-            echo "Patched build.gradle content:"
-            cat build.gradle
-          fi
-
       # Setup Node
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -102,70 +49,43 @@ jobs:
         working-directory: telon-gsm-sip-gateway/telon-gateway-app
         run: yarn install --frozen-lockfile
 
-      # Post-patch in node_modules as well
-      - name: Post-patch react-native-replace-dialer in node_modules
-        working-directory: telon-gsm-sip-gateway/telon-gateway-app
+      # Patch the root build.gradle to force all subprojects to use compileSdk 34
+      - name: Patch root build.gradle to fix subproject compile SDK
+        working-directory: telon-gsm-sip-gateway/telon-gateway-app/android
         run: |
-          echo "=== Searching for react-native-replace-dialer ==="
-          find . -name "react-native-replace-dialer" -type d
+          echo "=== Patching root build.gradle ==="
           
-          if [ -f "node_modules/react-native-replace-dialer/android/build.gradle" ]; then
-            echo "=== Found build.gradle in node_modules ==="
-            echo "=== BEFORE PATCH ==="
-            cat node_modules/react-native-replace-dialer/android/build.gradle
-            
-            cd node_modules/react-native-replace-dialer/android
-            
-            # Backup original
-            cp build.gradle build.gradle.original
-            
-            # Create new build.gradle
-            cat > build.gradle << 'EOF'
-          buildscript {
-              repositories {
-                  google()
-                  mavenCentral()
+          # Add subprojects configuration to force compileSdk 34
+          cat >> build.gradle << 'EOF'
+          
+          // Force all subprojects to use compileSdk 34 and Java 17
+          subprojects {
+              afterEvaluate { project ->
+                  if (project.hasProperty('android')) {
+                      project.android {
+                          compileSdk 34
+                          
+                          if (project.android.hasProperty('defaultConfig')) {
+                              project.android.defaultConfig {
+                                  if (!project.android.defaultConfig.hasProperty('minSdk')) {
+                                      minSdk 21
+                                  }
+                                  targetSdk 34
+                              }
+                          }
+                          
+                          compileOptions {
+                              sourceCompatibility JavaVersion.VERSION_17
+                              targetCompatibility JavaVersion.VERSION_17
+                          }
+                      }
+                  }
               }
-              dependencies {
-                  classpath 'com.android.tools.build:gradle:8.4.0'
-              }
-          }
-          
-          apply plugin: 'com.android.library'
-          
-          android {
-              compileSdk 34
-              namespace 'com.rnreplacedialer'
-          
-              defaultConfig {
-                  minSdk 21
-                  targetSdk 34
-              }
-          
-              compileOptions {
-                  sourceCompatibility JavaVersion.VERSION_17
-                  targetCompatibility JavaVersion.VERSION_17
-              }
-          }
-          
-          repositories {
-              google()
-              mavenCentral()
-          }
-          
-          dependencies {
-              implementation 'com.facebook.react:react-native:+'
           }
           EOF
-            
-            echo "=== AFTER PATCH ==="
-            cat build.gradle
-            echo "=== Patch complete ==="
-          else
-            echo "=== ERROR: build.gradle NOT FOUND in node_modules ==="
-            echo "Looking for alternative locations..."
-            find ../.. -name "build.gradle" -path "*/react-native-replace-dialer/*" -exec echo "Found: {}" \; -exec cat {} \;
-          fi
+          
+          echo "=== Root build.gradle after patch ==="
+          tail -30 build.gradle
 
       # Setup Java 17 (Required for Gradle 8.x and React Native 0.80)
       - name: Setup Java 17
@@ -192,26 +112,12 @@ jobs:
         working-directory: telon-gsm-sip-gateway/telon-gateway-app/android
         run: chmod +x gradlew
 
-      # Verify patch was applied before building
-      - name: Verify react-native-replace-dialer configuration
-        working-directory: telon-gsm-sip-gateway/telon-gateway-app
-        run: |
-          echo "=== Final verification before build ==="
-          echo "Checking all possible locations for react-native-replace-dialer build.gradle:"
-          find . -name "build.gradle" -path "*/react-native-replace-dialer/*" -exec echo "Location: {}" \; -exec grep -A 5 "compileSdk\|compileSdkVersion" {} \; || true
-          
-          echo ""
-          echo "=== Checking settings.gradle includes ==="
-          if [ -f "android/settings.gradle" ]; then
-            cat android/settings.gradle
-          fi
-
       # Clean Build
       - name: Clean Gradle Build
         working-directory: telon-gsm-sip-gateway/telon-gateway-app/android
         run: ./gradlew clean
 
-      # Build Android Release APK with verbose output
+      # Build Android Release APK
       - name: Build Android Release APK
         working-directory: telon-gsm-sip-gateway/telon-gateway-app/android
         run: ./gradlew assembleRelease --stacktrace
