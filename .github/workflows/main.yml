@@ -106,8 +106,14 @@ jobs:
       - name: Post-patch react-native-replace-dialer in node_modules
         working-directory: telon-gsm-sip-gateway/telon-gateway-app
         run: |
+          echo "=== Searching for react-native-replace-dialer ==="
+          find . -name "react-native-replace-dialer" -type d
+          
           if [ -f "node_modules/react-native-replace-dialer/android/build.gradle" ]; then
-            echo "Post-patching node_modules/react-native-replace-dialer/android/build.gradle"
+            echo "=== Found build.gradle in node_modules ==="
+            echo "=== BEFORE PATCH ==="
+            cat node_modules/react-native-replace-dialer/android/build.gradle
+            
             cd node_modules/react-native-replace-dialer/android
             
             # Backup original
@@ -152,8 +158,13 @@ jobs:
           }
           EOF
             
-            echo "Patched node_modules build.gradle:"
+            echo "=== AFTER PATCH ==="
             cat build.gradle
+            echo "=== Patch complete ==="
+          else
+            echo "=== ERROR: build.gradle NOT FOUND in node_modules ==="
+            echo "Looking for alternative locations..."
+            find ../.. -name "build.gradle" -path "*/react-native-replace-dialer/*" -exec echo "Found: {}" \; -exec cat {} \;
           fi
 
       # Setup Java 17 (Required for Gradle 8.x and React Native 0.80)
@@ -180,6 +191,20 @@ jobs:
       - name: Make Gradlew Executable
         working-directory: telon-gsm-sip-gateway/telon-gateway-app/android
         run: chmod +x gradlew
+
+      # Verify patch was applied before building
+      - name: Verify react-native-replace-dialer configuration
+        working-directory: telon-gsm-sip-gateway/telon-gateway-app
+        run: |
+          echo "=== Final verification before build ==="
+          echo "Checking all possible locations for react-native-replace-dialer build.gradle:"
+          find . -name "build.gradle" -path "*/react-native-replace-dialer/*" -exec echo "Location: {}" \; -exec grep -A 5 "compileSdk\|compileSdkVersion" {} \; || true
+          
+          echo ""
+          echo "=== Checking settings.gradle includes ==="
+          if [ -f "android/settings.gradle" ]; then
+            cat android/settings.gradle
+          fi
 
       # Clean Build
       - name: Clean Gradle Build
