@@ -11,9 +11,46 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout
+      # Checkout main repository
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          path: telon-gsm-sip-gateway
+
+      # Checkout required libraries (as per README pre-installation setup)
+      - name: Checkout react-native-tele
+        uses: actions/checkout@v4
+        with:
+          repository: telon-org/react-native-tele
+          path: react-native-tele
+
+      - name: Checkout react-native-sip2
+        uses: actions/checkout@v4
+        with:
+          repository: telon-org/react-native-sip2
+          path: react-native-sip2
+
+      - name: Checkout react-native-replace-dialer
+        uses: actions/checkout@v4
+        with:
+          repository: telon-org/react-native-replace-dialer
+          path: react-native-replace-dialer
+
+      # Fix react-native-replace-dialer compileSdkVersion issue
+      - name: Patch react-native-replace-dialer build.gradle
+        run: |
+          cd react-native-replace-dialer/android
+          if [ -f build.gradle ]; then
+            # Update compileSdkVersion to 34 if it exists
+            sed -i 's/compileSdkVersion [0-9]*/compileSdkVersion 34/g' build.gradle
+            sed -i 's/targetSdkVersion [0-9]*/targetSdkVersion 34/g' build.gradle
+            # Ensure minSdkVersion is set
+            if ! grep -q "minSdkVersion" build.gradle; then
+              sed -i '/defaultConfig {/a \        minSdkVersion 21' build.gradle
+            fi
+            echo "Patched react-native-replace-dialer build.gradle"
+            cat build.gradle
+          fi
 
       # Setup Node
       - name: Setup Node.js
@@ -21,11 +58,11 @@ jobs:
         with:
           node-version: 18
           cache: 'yarn'
-          cache-dependency-path: 'telon-gateway-app/yarn.lock'
+          cache-dependency-path: 'telon-gsm-sip-gateway/telon-gateway-app/yarn.lock'
 
       # Install Dependencies
       - name: Install Dependencies
-        working-directory: telon-gateway-app
+        working-directory: telon-gsm-sip-gateway/telon-gateway-app
         run: yarn install --frozen-lockfile
 
       # Setup Java 17 (Required for Gradle 8.x and React Native 0.80)
@@ -48,25 +85,19 @@ jobs:
         run: |
           sdkmanager "platforms;android-34" "build-tools;34.0.0" "ndk;27.1.12297006"
 
-      # Configure NDK Path
-      - name: Configure Android NDK
-        working-directory: telon-gateway-app/android
-        run: |
-          echo "ndk.dir=$ANDROID_HOME/ndk/27.1.12297006" > local.properties
-
       # Make Gradlew Executable
       - name: Make Gradlew Executable
-        working-directory: telon-gateway-app/android
+        working-directory: telon-gsm-sip-gateway/telon-gateway-app/android
         run: chmod +x gradlew
 
       # Clean Build
       - name: Clean Gradle Build
-        working-directory: telon-gateway-app/android
+        working-directory: telon-gsm-sip-gateway/telon-gateway-app/android
         run: ./gradlew clean
 
       # Build Android Release APK
       - name: Build Android Release APK
-        working-directory: telon-gateway-app/android
+        working-directory: telon-gsm-sip-gateway/telon-gateway-app/android
         run: ./gradlew assembleRelease
 
       # Upload APK Artifact
@@ -74,11 +105,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: android-release-apk
-          path: telon-gateway-app/android/app/build/outputs/apk/release/*.apk
+          path: telon-gsm-sip-gateway/telon-gateway-app/android/app/build/outputs/apk/release/*.apk
 
       # Optional: Also build AAB if needed
       - name: Build Android Release AAB
-        working-directory: telon-gateway-app/android
+        working-directory: telon-gsm-sip-gateway/telon-gateway-app/android
         run: ./gradlew bundleRelease
         continue-on-error: true
 
@@ -87,5 +118,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: android-release-aab
-          path: telon-gateway-app/android/app/build/outputs/bundle/release/*.aab
+          path: telon-gsm-sip-gateway/telon-gateway-app/android/app/build/outputs/bundle/release/*.aab
         continue-on-error: true
