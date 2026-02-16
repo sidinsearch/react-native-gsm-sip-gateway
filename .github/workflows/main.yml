@@ -36,19 +36,57 @@ jobs:
           repository: telon-org/react-native-replace-dialer
           path: react-native-replace-dialer
 
-      # Fix react-native-replace-dialer compileSdkVersion issue
-      - name: Patch react-native-replace-dialer build.gradle
+      # Patch react-native-replace-dialer BEFORE linking
+      - name: Pre-patch react-native-replace-dialer
         run: |
-          cd react-native-replace-dialer/android
-          if [ -f build.gradle ]; then
-            # Update compileSdkVersion to 34 if it exists
-            sed -i 's/compileSdkVersion [0-9]*/compileSdkVersion 34/g' build.gradle
-            sed -i 's/targetSdkVersion [0-9]*/targetSdkVersion 34/g' build.gradle
-            # Ensure minSdkVersion is set
-            if ! grep -q "minSdkVersion" build.gradle; then
-              sed -i '/defaultConfig {/a \        minSdkVersion 21' build.gradle
-            fi
-            echo "Patched react-native-replace-dialer build.gradle"
+          if [ -f "react-native-replace-dialer/android/build.gradle" ]; then
+            echo "Pre-patching react-native-replace-dialer/android/build.gradle"
+            cd react-native-replace-dialer/android
+            
+            # Create a more comprehensive patch
+            cat > build.gradle.new << 'GRADLE_EOF'
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.4.0'
+    }
+}
+
+apply plugin: 'com.android.library'
+
+android {
+    compileSdk 34
+    namespace 'com.rnreplacedialer'
+
+    defaultConfig {
+        minSdk 21
+        targetSdk 34
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+repositories {
+    google()
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'com.facebook.react:react-native:+'
+}
+GRADLE_EOF
+            
+            # Use the new file
+            cp build.gradle build.gradle.original
+            cp build.gradle.new build.gradle
+            
+            echo "Patched build.gradle content:"
             cat build.gradle
           fi
 
@@ -64,6 +102,59 @@ jobs:
       - name: Install Dependencies
         working-directory: telon-gsm-sip-gateway/telon-gateway-app
         run: yarn install --frozen-lockfile
+
+      # Post-patch in node_modules as well
+      - name: Post-patch react-native-replace-dialer in node_modules
+        working-directory: telon-gsm-sip-gateway/telon-gateway-app
+        run: |
+          if [ -f "node_modules/react-native-replace-dialer/android/build.gradle" ]; then
+            echo "Post-patching node_modules/react-native-replace-dialer/android/build.gradle"
+            cd node_modules/react-native-replace-dialer/android
+            
+            cat > build.gradle.new << 'GRADLE_EOF'
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.4.0'
+    }
+}
+
+apply plugin: 'com.android.library'
+
+android {
+    compileSdk 34
+    namespace 'com.rnreplacedialer'
+
+    defaultConfig {
+        minSdk 21
+        targetSdk 34
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+repositories {
+    google()
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'com.facebook.react:react-native:+'
+}
+GRADLE_EOF
+            
+            cp build.gradle build.gradle.original
+            cp build.gradle.new build.gradle
+            
+            echo "Patched node_modules build.gradle:"
+            cat build.gradle
+          fi
 
       # Setup Java 17 (Required for Gradle 8.x and React Native 0.80)
       - name: Setup Java 17
@@ -95,10 +186,10 @@ jobs:
         working-directory: telon-gsm-sip-gateway/telon-gateway-app/android
         run: ./gradlew clean
 
-      # Build Android Release APK
+      # Build Android Release APK with verbose output
       - name: Build Android Release APK
         working-directory: telon-gsm-sip-gateway/telon-gateway-app/android
-        run: ./gradlew assembleRelease
+        run: ./gradlew assembleRelease --stacktrace
 
       # Upload APK Artifact
       - name: Upload Release APK
