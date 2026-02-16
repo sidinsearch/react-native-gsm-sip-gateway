@@ -46,13 +46,13 @@ jobs:
       # Install required SDK components
       - name: Install Android SDK Components
         run: |
-          sdkmanager "platforms;android-34" "build-tools;34.0.0" "ndk;26.1.10909125"
+          sdkmanager "platforms;android-34" "build-tools;34.0.0" "ndk;27.1.12297006"
 
       # Configure NDK Path
       - name: Configure Android NDK
         working-directory: telon-gateway-app/android
         run: |
-          echo "ndk.dir=$ANDROID_HOME/ndk/26.1.10909125" > local.properties
+          echo "ndk.dir=$ANDROID_HOME/ndk/27.1.12297006" > local.properties
 
       # Make Gradlew Executable
       - name: Make Gradlew Executable
