@@ -1,4 +1,3 @@
-test build
 # Telon GSM-SIP Gateway
 
 ![Telon Logo](https://telon.org/logo.png)
